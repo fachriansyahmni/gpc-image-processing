@@ -1,91 +1,96 @@
-from flask import Flask, render_template, request
-
-import numpy as np
+import tkinter as tk
+from tkinter import filedialog
 import cv2
+from PIL import Image, ImageTk
 
-app = Flask(__name__)
+class App:
+    def __init__(self, window, window_title):
+        self.window = window
+        self.window.title(window_title)
 
-def convertToHtml(result):
-    html = """
-    <!DOCTYPE html>
-    <html lang="en">
+        self.window.geometry("400x400")
 
-    <head>
-    <meta charset="UTF-8">
-    <meta http-equiv="X-UA-Compatible" content="IE=edge">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Document</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-GLhlTQ8iRABdZLl6O3oVMWSktQOp6b7In1Zl3/Jr59b6EGGoI1aFkw7cmDA6j6gD" crossorigin="anonymous">
-    </head>
+        self.labelinput = tk.Label(self.window, text="Masukkan Gambar")
+        self.labelinput.place(x=50, y=10)
 
-    <body>
-        <div class="container">
-           """+result+"""
-        </div>
+        # Create a button to select the image file
+        self.button = tk.Button(window, text="Pilih Gambar", command=self.select_image)
+        self.button.place(x=180, y=10)
+
+        # Create a label to display the selected image
+        self.label = tk.Label(window)
+        self.label.place(x=0, y=80, width=300, height=300)
+
+        # Start the event loop
+        self.window.mainloop()
+
+    def select_image(self):
+        # Open a file dialog to select the image file
+        file_path = filedialog.askopenfilename()
+
+        if file_path:
+            # Load the image using OpenCV
+            cv_image = cv2.imread(file_path)
+            
+            # Convert the image to RGB format
+            cv_image = cv2.cvtColor(cv_image, cv2.COLOR_BGR2RGB)
+
+            # Create a PIL Image from the OpenCV image
+            pil_image = Image.fromarray(cv_image)
+
+            # Create a Tkinter PhotoImage from the PIL Image
+            tk_image = ImageTk.PhotoImage(pil_image)
+
+            # Update the label with the new image
+            self.label.config(image=tk_image)
+            self.label.image = tk_image
+            self.label.place(x=0, y=80, width=1000, height=1000)
+
+            # Create a button to convert the image to grayscale
+            self.buttontogray = tk.Button(self.window, text="Ubah ke Grayscale")
+            self.buttontogray.place(x=140, y=50)
+            # if clicked, run the convert_to_gray function
+            self.buttontogray.config(command=lambda: self.convert_to_gray(file_path))
+
+            # Create a button to convert the image to canny
+            self.buttontocanny = tk.Button(self.window, text="Ubah ke Canny")
+            self.buttontocanny.place(x=250, y=50)
+            # if clicked, run the convert_to_canny function
+            self.buttontocanny.config(command=lambda: self.convert_to_canny(file_path))
+
+    def convert_to_gray(self,file_path):
+        # convert to grayscale by image loaded
+        if(file_path):
+            cv_image = cv2.imread(file_path)
+
+            # Create a PIL Image from the OpenCV image
+            pil_image = Image.fromarray(cv_image)
+
+            # Create a Tkinter PhotoImage from the PIL Image
+            tk_image = ImageTk.PhotoImage(pil_image)
+
+            # Update the label with the new image
+            self.label.config(image=tk_image)
+            self.label.image = tk_image
 
 
-    <script src="https://code.jquery.com/jquery-3.6.3.min.js" integrity="sha256-pvPw+upLPUjgMXY0G+8O0xUf+/Im1MZjXxxgOcBQBXU=" crossorigin="anonymous"></script>
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js" integrity="sha384-w76AqPfDkMBDXo30jS1Sgez6pr3x5MlQ1ZAGC+nuZB+EYdgRZgiwxhTBTkF7CXvN" crossorigin="anonymous"></script>
+    def convert_to_canny(self,file_path):
+        if file_path:
+            # Load the image using OpenCV
+            cv_image = cv2.imread(file_path)
+            
+            # Convert the image to RGB format
+            cv_image = cv2.Canny(cv_image, 100, 200)
 
-    </body>
+            # Create a PIL Image from the OpenCV image
+            pil_image = Image.fromarray(cv_image)
 
-    </html>"""
-    return html
+            # Create a Tkinter PhotoImage from the PIL Image
+            tk_image = ImageTk.PhotoImage(pil_image)
 
-@app.route("/")
-def index():
-    return render_template("index.html")
+            # Update the label with the new image
+            self.label.config(image=tk_image)
+            self.label.image = tk_image
 
-@app.route("/upload", methods=["POST","GET"])
-def upload():
-    result = ""
-    items = []
-    if request.method == "POST":
-        f = request.files["image"]
-        # save with rename file
-        imgName = "static/"+ "input.jpg"
-        f.save(imgName)
-        img = cv2.imread(imgName)
-
-        # blur image
-        imgBlur = cv2.GaussianBlur(img, (5, 5), 0)
-        cv2.imwrite("static/blur.jpg", imgBlur)
-        items.append(["Blur", "static/blur.jpg"])
-
-        # change color
-        imgGray = cv2.cvtColor(imgBlur, cv2.COLOR_BGR2GRAY)
-        cv2.imwrite("static/gray.jpg", imgGray)
-        items.append(["Gray", "static/gray.jpg"])
-
-        # edge detection
-        imgCanny = cv2.Canny(imgGray, 100, 100)
-        cv2.imwrite("static/canny.jpg", imgCanny)
-        items.append(["Canny", "static/canny.jpg"])
-
-        result += "<table id='resulttbl' class='table table-striped table-bordered' style='width:100%'>"
-        result += "<thead>"
-        result += "<tr>"
-        result += "<th>Keterangan</th>"
-        result += "<th>Gambar</th>"
-        result += "</thead>"
-        result += "<tbody>"
-        for item in items:
-            result += "<tr>"
-            result += "<td>"+item[0]+"</td>"
-            result += "<td><img src='"+item[1]+"' width='200px' height='200px'></td>"
-            result += "</tr>"
-
-        result += "</tbody>"
-        result += "</table>"
-
-        f = open('templates/result.html', 'w') 
-        f.write(convertToHtml(result))
-
-        f.close()
-        return render_template("result.html")
-    if request.method == "GET":
-        return render_template("result.html")
-
-if __name__ == "__main__":
-    app.debug = True
-    app.run()
+# Create a window and pass it to the Application object
+App(tk.Tk(), "Image Input Form")
